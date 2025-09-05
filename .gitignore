@@ -1,3 +1,36 @@
-*.exe
-*.exe~
+# Go build artifacts
+/bin/
+/build/
+/*.exe
+/*.exe~
+/*.dll
+/*.so
+/*.dylib
 
+
+# Editor & OS files
+*.swp
+*.swo
+*.tmp
+*.log
+*.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Generated shell completion scripts
+*.sh
+*.zsh
+*.fish
+*.ps1
+
+# Test / coverage
+*.out
+*.cover
+coverage.html
+ 

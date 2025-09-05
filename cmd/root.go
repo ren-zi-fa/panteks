@@ -1,49 +1,46 @@
 /*
-Copyright © 2025 Renzi Febriandika <Renzifebriandika923@gmailc.com>
-
+Copyright © 2025 Renzi Febriandika <Renzifebriandika923@gmail.com>
 */
 package cmd
 
 import (
-	"os"
+	"log"
+
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
 
+var version = "1.0.0"
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "panteks",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+    Use:   "panteks",
+    Short: "Panteks is a CLI tool for web scraping",
+    Long: `Panteks is a command-line interface (CLI) tool designed to scrape data from websites efficiently.
+It extracts the important information from web pages and converts it into plain text, making it easy
+to process, analyze, or store. Panteks supports various scraping options and output formats,
+enabling developers and data analysts to automate the collection of textual content from websites.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+Features include:
+  - Extract plain text content from HTML pages
+  - Save results in text or HTML formats
+  - Support for target URLs`,
+    Version: version,
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+
+
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
+ 	 if err := godotenv.Load(); err != nil {
+        log.Println("Warning: .env file not found, using system env")
+    }
+
+    if err := rootCmd.Execute(); err != nil {
+        log.Fatal(err)
+    }
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.panteks.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 

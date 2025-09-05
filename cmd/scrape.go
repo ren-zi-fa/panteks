@@ -1,107 +1,89 @@
 /*
-Copyright © 2025 output HERE <EMAIL ADDRESS>
+Copyright © 2025 <renzifebriandika923@gmail.com>
 */
 package cmd
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"panteks/internal/utils"
 	"panteks/internal/validator"
-	"panteks/internal/web"
-	"time"
 
 	"github.com/spf13/cobra"
 )
 
-type saveFunc func([]byte, ...string) (*string, int, error)
-
-var outputs = map[string]saveFunc{
-    "html": web.SaveToHTML,
-    // "json": web.SaveToJSON,
-    // "txt":  web.SaveToTXT,
-}
+var (
+    ApiKey = os.Getenv("API_KEY")
+    ApiURL = os.Getenv("API_URL")
+)
 
 
 var scrapeCmd = &cobra.Command{
 	Use:   "scrape",
 	Short: "Scrape data from a specified target",
-	Long: `Scrape data from a specified target. Use the --target or -t flag to specify the target.`,
+	Long:  `Scrape data from a specified target. Use the --target or -t flag to specify the target.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
-		selector, _ := cmd.Flags().GetString("selector")
+		output, _ := cmd.Flags().GetString("output")
 		html, _ := cmd.Flags().GetBool("html")
-		output,_ := cmd.Flags().GetString("output")
-		jsonFlag, _ := cmd.Flags().GetBool("json")
-		txt, _ := cmd.Flags().GetBool("txt")
-
-		if jsonFlag && selector == "" {
-            return fmt.Errorf("--selector (-s) is required when using --json")
-        }
-	
-	if output == "" {
-   	  switch {
-   	 		case html:
-    	    	output = "output.html"
-    		case jsonFlag:
-      			  output = "output.json"
-    		case txt:
-      			  output = "output.txt"
-    		default:
-       			 output = "output.txt" 
-  	  	}
-	}
 
 		if err := validator.ValidateTarget(target); err != nil {
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		data, err := web.Scrape(ctx, target)
-		if err != nil {
-			return fmt.Errorf("error occurred: %w", err)
-		}
-
-		flags := map[string]bool{
-			"html": html,
-			"json": jsonFlag,
-			"txt":  txt,
-		}
-		anyFlag := false
-
-		for k, enabled := range flags {
-		if enabled {
-			path, n, err := outputs[k](data, output)
+		switch {
+		case html:
+			resultScrape, err := utils.Scrape(ctx, target)
 			if err != nil {
-				return fmt.Errorf("failed to save %s: %w", k, err)
+				return err
 			}
-			fmt.Printf("Data successfully saved in %s (%d bytes)\n", *path, n)
-			anyFlag = true
+			resultHTML, _, err := utils.SaveToHTML(resultScrape, output)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("The result is available at %s\n", *resultHTML)
+
+		default:
+			resultScrape, err := utils.Scrape(ctx, target)
+			if err != nil {
+				return err
+			}
+
+			chunks := utils.SplitContent(string(resultScrape), 3000)
+
+			var combinedResult string
+			for i, chunk := range chunks {
+				fmt.Printf("➡️ Processing chunk %d/%d...\n", i+1, len(chunks))
+				content := "Extract the important information from the following HTML and return ONLY plain text:\n\n" + chunk
+
+				result, err := utils.CallAPIWithRetry(ApiKey, ApiURL, content)
+				if err != nil {
+					panic(err)
+				}
+				combinedResult += result + "\n"
+			}
+
+			resultTXT, _, err := utils.SaveToTXT([]byte(combinedResult), output)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("The result is available at %s\n", *resultTXT)
 		}
+
+		return nil
+	},
 }
-
-		if !anyFlag {
-			path, _, err := web.SaveToHTML(data, output)
-			if err != nil {
-				return fmt.Errorf("error occurred: %w", err)
-			}
-			fmt.Printf("Data successfully saved in %s\n", *path)
-		}
-
-				return nil
-			},
-		}
 
 func init() {
 	rootCmd.AddCommand(scrapeCmd)
 
 	scrapeCmd.Flags().StringP("target", "t", "", "Target URL or data source to scrape")
-	scrapeCmd.Flags().StringP("selector", "s", "", "CSS selector for the data to extract")
 	scrapeCmd.Flags().StringP("output", "o", "", "Output location")
 	scrapeCmd.Flags().BoolP("html", "H", false, "Generate HTML output")
-	scrapeCmd.Flags().BoolP("json", "J", false, "Generate JSON output")
-	scrapeCmd.Flags().BoolP("txt", "T", false, "Generate TXT output")
 
 	scrapeCmd.MarkFlagRequired("target")
 
