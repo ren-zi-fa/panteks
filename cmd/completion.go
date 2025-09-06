@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 YOUR NAME <YOUR EMAIL>
+Copyright © 2025 <renzifebriandika923@gmail.com>
 */
 
 package cmd

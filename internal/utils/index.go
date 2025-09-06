@@ -136,7 +136,7 @@ func ExtractBody(htmlBytes []byte) ([]byte, error) {
 		return nil, fmt.Errorf("no <body> found")
 	}
 
-	removeTags(body, "script", "footer", "style")
+	removeTags(body, "script", "footer", "style","nav")
 
 
 	removeAttrs(body, "style")

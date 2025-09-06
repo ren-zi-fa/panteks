@@ -7,16 +7,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"panteks/internal/utils"
 	"panteks/internal/validator"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
 
-var (
-    ApiKey = os.Getenv("API_KEY")
-    ApiURL = os.Getenv("API_URL")
-)
+var ApiKey, ApiURL,CommandString string
 
 
 var scrapeCmd = &cobra.Command{
@@ -24,61 +23,78 @@ var scrapeCmd = &cobra.Command{
 	Short: "Scrape data from a specified target",
 	Long:  `Scrape data from a specified target. Use the --target or -t flag to specify the target.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		target, _ := cmd.Flags().GetString("target")
-		output, _ := cmd.Flags().GetString("output")
-		html, _ := cmd.Flags().GetBool("html")
+    target, _ := cmd.Flags().GetString("target")
+    output, _ := cmd.Flags().GetString("output")
+    html, _ := cmd.Flags().GetBool("html")
 
-		if err := validator.ValidateTarget(target); err != nil {
-			return err
-		}
+    if err := validator.ValidateTarget(target); err != nil {
+        return err
+    }
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
 
-		switch {
-		case html:
-			resultScrape, err := utils.Scrape(ctx, target)
-			if err != nil {
-				return err
-			}
-			resultHTML, _, err := utils.SaveToHTML(resultScrape, output)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("The result is available at %s\n", *resultHTML)
+    // handle CTRL+C
+    sigs := make(chan os.Signal, 1)
+    signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+    go func() {
+        <-sigs
+        fmt.Println("\n⛔ Stopped by user")
+        cancel()
+    }()
 
-		default:
-			resultScrape, err := utils.Scrape(ctx, target)
-			if err != nil {
-				return err
-			}
+    switch {
+    case html:
+        resultScrape, err := utils.Scrape(ctx, target)
+        if err != nil {
+            return err
+        }
+        resultHTML, _, err := utils.SaveToHTML(resultScrape, output)
+        if err != nil {
+            return err
+        }
+        fmt.Printf("The result is available at %s\n", *resultHTML)
 
-			chunks := utils.SplitContent(string(resultScrape), 3000)
+    default:
+        resultScrape, err := utils.Scrape(ctx, target)
+        if err != nil {
+            return err
+        }
 
-			var combinedResult string
-			for i, chunk := range chunks {
-				fmt.Printf("➡️ Processing chunk %d/%d...\n", i+1, len(chunks))
-				content := "Extract the important information from the following HTML and return ONLY plain text:\n\n" + chunk
+        chunks := utils.SplitContent(string(resultScrape), 3000)
 
-				result, err := utils.CallAPIWithRetry(ApiKey, ApiURL, content)
-				if err != nil {
-					panic(err)
-				}
-				combinedResult += result + "\n"
-			}
+        var combinedResult string
+        for i, chunk := range chunks {
+            select {
+            case <-ctx.Done():
+                return fmt.Errorf("stopped by user")
+            default:
+                fmt.Printf("➡️ Processing chunk %d/%d...\n", i+1, len(chunks))
+                content := CommandString+":\n\n"+ chunk
 
-			resultTXT, _, err := utils.SaveToTXT([]byte(combinedResult), output)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("The result is available at %s\n", *resultTXT)
-		}
+                result, err := utils.CallAPIWithRetry(ApiKey, ApiURL, content)
+                if err != nil {
+                    return err
+                }
+                combinedResult += result + "\n"
+            }
+        }
 
-		return nil
-	},
+        resultTXT, _, err := utils.SaveToTXT([]byte(combinedResult), output)
+        if err != nil {
+            return err
+        }
+        fmt.Printf("The result is available at %s\n", *resultTXT)
+    }
+
+    return nil
+},
 }
 
 func init() {
+
+	
+	
 	rootCmd.AddCommand(scrapeCmd)
 
 	scrapeCmd.Flags().StringP("target", "t", "", "Target URL or data source to scrape")

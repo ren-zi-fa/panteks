@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"log"
-
-	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -31,16 +29,13 @@ Features include:
 
 
 func Execute() {
- 	 if err := godotenv.Load(); err != nil {
-        log.Println("Warning: .env file not found, using system env")
-    }
-
     if err := rootCmd.Execute(); err != nil {
         log.Fatal(err)
     }
 }
 
 func init() {
+
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
