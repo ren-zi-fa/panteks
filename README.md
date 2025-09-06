@@ -14,4 +14,12 @@ Panteks supports various scraping options and output formats, enabling developer
 
 You can download the latest release from [Releases](https://github.com/ren-zi-fa/panteks/releases) or build from source:
 
+## usage
+
+```bash
+
+panteks scrape --target="https://nekopoi.care"
+
+```
+
 
